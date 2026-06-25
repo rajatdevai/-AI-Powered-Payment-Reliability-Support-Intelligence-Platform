@@ -1,0 +1,26 @@
+{
+  "name": "@prism/schemas",
+  "version": "1.0.0",
+  "description": "Shared Zod schemas for all PRISM Node.js services",
+  "private": true,
+  "type": "module",
+  "main": "./dist/node/index.js",
+  "types": "./dist/node/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/node/index.js",
+      "types": "./dist/node/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "dev": "tsc --project tsconfig.json --watch"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3"
+  }
+}

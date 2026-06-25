@@ -1,0 +1,22 @@
+{
+  "name": "@prism/postgres",
+  "version": "1.0.0",
+  "description": "Prisma schema and migrations for PRISM PostgreSQL",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "studio": "prisma studio",
+    "seed": "ts-node seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.16.2"
+  },
+  "devDependencies": {
+    "prisma": "^5.16.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.3"
+  }
+}

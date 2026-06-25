@@ -1,0 +1,13 @@
+{
+  "event_id": "770e8400-e29b-41d4-a716-446655440004",
+  "event_type": "rca.generated",
+  "correlation_id": "txn-flow-9f1b2c3d",
+  "timestamp": "2024-01-15T07:32:19.000Z",
+  "version": "1.0",
+  "transaction_id": "txn_abc123xyz_1705301521000",
+  "rca_report_id": "rca_report_001",
+  "root_cause": "HDFC Issuer Bank Gateway Timeout",
+  "affected_component": "Sender Bank",
+  "confidence": 0.91,
+  "llm_summary": "The payment from ICICI to HDFC failed because the HDFC issuer gateway did not respond within the NPCI timeout window of 5 seconds. This is a known pattern during HDFC's peak load window (07:30–08:30 IST). The NPCI switch received the routing request but the HDFC gateway returned a socket hang-up after 6.2 seconds."
+}

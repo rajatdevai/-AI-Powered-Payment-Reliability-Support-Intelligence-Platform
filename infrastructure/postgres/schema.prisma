@@ -1,0 +1,250 @@
+// =============================================================================
+// PRISM — PostgreSQL Schema (Prisma)
+// Source of Truth: README.md § Domain Model
+// =============================================================================
+// Rules (AI_ENGINEERING_OPERATING_SYSTEM.md § 4.3):
+//   Writers: payment-orchestrator, rca-engine, reversal-engine, incident-engine
+//   Readers: api-gateway, agent-service (via api-gateway only)
+// =============================================================================
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../../node_modules/.prisma/client"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum BankCode {
+  HDFC
+  ICICI
+  SBI
+  AXIS
+  YESBANK
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  TIMEOUT
+  REVERSED
+}
+
+enum IncidentSeverity {
+  LOW
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  ACTIVE
+  RESOLVED
+}
+
+enum CaseStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  ESCALATED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ============================================================
+// USER
+// ============================================================
+
+model User {
+  id         String   @id @default(uuid()) @db.Uuid
+  phone      String   @unique
+  upi_id     String?  @unique
+  name       String
+  email      String?  @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  transactions Transaction[]
+  cases        SupportCase[]
+
+  @@map("users")
+}
+
+// ============================================================
+// MERCHANT
+// ============================================================
+
+model Merchant {
+  id         String    @id @default(uuid()) @db.Uuid
+  name       String
+  code       String    @unique
+  category   String?
+  bank_code  BankCode?
+  created_at DateTime  @default(now())
+
+  transactions Transaction[]
+
+  @@map("merchants")
+}
+
+// ============================================================
+// TRANSACTION
+// Core ledger. Append-only — never delete rows.
+// ============================================================
+
+model Transaction {
+  id                  String            @id @default(uuid()) @db.Uuid
+  amount              Decimal           @db.Decimal(12, 2)
+  currency            String            @default("INR") @db.VarChar(3)
+  sender_bank         BankCode
+  receiver_bank       BankCode
+  psp_id              String?
+  merchant_id         String?           @db.Uuid
+  user_id             String?           @db.Uuid
+  status              TransactionStatus @default(PENDING)
+  route_path          String[]                               // ["HDFC", "NPCI", "SBI"]
+  latency_ms          Int?
+  error_code          String?
+  error_message       String?
+  root_cause          String?
+  affected_component  String?
+  rca_confidence      Float?                                 // 0.0 – 1.0
+  expected_reversal   String?                                // "14 minutes"
+  reversal_confidence Float?                                 // 0 – 100
+  created_at          DateTime          @default(now())
+  settled_at          DateTime?
+
+  // Relations
+  merchant            Merchant?          @relation(fields: [merchant_id], references: [id])
+  user                User?              @relation(fields: [user_id], references: [id])
+  rca_report          RcaReport?
+  reversal_prediction ReversalPrediction?
+  support_cases       SupportCase[]
+
+  // Indexes — optimised for the most common query patterns
+  @@index([status])                                          // Filter by status
+  @@index([sender_bank, receiver_bank])                      // Route queries
+  @@index([created_at(sort: Desc)])                          // Time-series ordering
+  @@index([user_id])                                         // User transaction history
+  @@index([merchant_id])                                     // Merchant analytics
+  @@index([status, created_at(sort: Desc)])                  // Failed txns in time window
+  @@index([sender_bank, receiver_bank, status])              // Route + status compound
+
+  @@map("transactions")
+}
+
+// ============================================================
+// INCIDENT
+// Auto-created by incident-engine. One per route degradation event.
+// ============================================================
+
+model Incident {
+  id                       String           @id @default(uuid()) @db.Uuid
+  route                    String                                  // "HDFC_SBI"
+  severity                 IncidentSeverity
+  status                   IncidentStatus   @default(ACTIVE)
+  affected_users_count     Int              @default(0)
+  affected_merchants_count Int              @default(0)
+  blast_radius             Json?                                   // BlastRadius object
+  description              String
+  root_cause               String?
+  created_at               DateTime         @default(now())
+  resolved_at              DateTime?
+
+  @@index([status])
+  @@index([route])
+  @@index([status, created_at(sort: Desc)])
+  @@index([severity, status])
+
+  @@map("incidents")
+}
+
+// ============================================================
+// RCA REPORT
+// One per failed transaction. Created by rca-engine.
+// ============================================================
+
+model RcaReport {
+  id                 String      @id @default(uuid()) @db.Uuid
+  transaction_id     String      @unique @db.Uuid
+  root_cause         String
+  affected_component String
+  confidence         Float                                          // 0.0 – 1.0
+  evidence           Json                                           // RcaEvidence object
+  llm_summary        String?     @db.Text
+  created_at         DateTime    @default(now())
+
+  transaction        Transaction @relation(fields: [transaction_id], references: [id])
+
+  @@index([transaction_id])
+  @@index([created_at(sort: Desc)])
+  @@index([affected_component])
+
+  @@map("rca_reports")
+}
+
+// ============================================================
+// REVERSAL PREDICTION
+// One per failed transaction. Created by reversal-engine.
+// ============================================================
+
+model ReversalPrediction {
+  id                  String      @id @default(uuid()) @db.Uuid
+  transaction_id      String      @unique @db.Uuid
+  refund_eta          String                                        // "14 minutes"
+  refund_eta_minutes  Int                                           // Numeric for sort/filter
+  reversal_confidence Float                                         // 0 – 100
+  similar_cases       Json?                                         // Array of similar tx IDs
+  bank_behavior_note  String?
+  created_at          DateTime    @default(now())
+
+  transaction         Transaction @relation(fields: [transaction_id], references: [id])
+
+  @@index([transaction_id])
+
+  @@map("reversal_predictions")
+}
+
+// ============================================================
+// SUPPORT CASE
+// Created when a user or BPO agent opens a case.
+// ============================================================
+
+model SupportCase {
+  id                           String      @id @default(uuid()) @db.Uuid
+  transaction_id               String      @db.Uuid
+  customer_id                  String?     @db.Uuid
+  agent_id                     String?                              // BPO agent identifier
+  status                       CaseStatus  @default(OPEN)
+  ai_rca_summary               String?     @db.Text
+  ai_suggested_response        String?     @db.Text
+  ai_escalation_recommendation String?     @db.Text
+  refund_eta                   String?
+  notes                        String?     @db.Text
+  created_at                   DateTime    @default(now())
+  updated_at                   DateTime    @updatedAt
+  closed_at                    DateTime?
+
+  transaction                  Transaction @relation(fields: [transaction_id], references: [id])
+  customer                     User?       @relation(fields: [customer_id], references: [id])
+
+  @@index([status])
+  @@index([transaction_id])
+  @@index([customer_id])
+  @@index([agent_id])
+  @@index([status, created_at(sort: Desc)])
+
+  @@map("support_cases")
+}

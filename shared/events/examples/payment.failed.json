@@ -1,0 +1,16 @@
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440002",
+  "event_type": "payment.failed",
+  "correlation_id": "txn-flow-9f1b2c3d",
+  "timestamp": "2024-01-15T07:32:08.000Z",
+  "version": "1.0",
+  "transaction_id": "txn_abc123xyz_1705301521000",
+  "amount": 7500.00,
+  "currency": "INR",
+  "sender_bank": "ICICI",
+  "receiver_bank": "HDFC",
+  "route_path": ["ICICI", "NPCI", "HDFC"],
+  "error_code": "NPCI_ISSUER_TIMEOUT",
+  "error_message": "Issuer bank gateway timeout during execution",
+  "latency_ms": 6234
+}

@@ -1,0 +1,26 @@
+{
+  "name": "prism",
+  "version": "1.0.0",
+  "description": "AI-Powered Payment Reliability & Support Intelligence Platform",
+  "private": true,
+  "workspaces": [
+    "shared/schemas",
+    "shared/events",
+    "shared/protobuf",
+    "infrastructure/postgres",
+    "services/node-services/payment-orchestrator",
+    "apps/customer-portal",
+    "apps/bpo-console",
+    "apps/ops-console"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "generate:prisma": "npm run generate --workspace=infrastructure/postgres",
+    "generate:proto": "bash shared/protobuf/generate.sh"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

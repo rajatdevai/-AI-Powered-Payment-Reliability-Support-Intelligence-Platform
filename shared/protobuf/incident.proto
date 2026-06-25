@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package prism.incident;
+
+/**
+ * IncidentService
+ *
+ * gRPC server: incident-engine (Python / FastAPI)
+ * gRPC clients: payment-orchestrator (Node.js), api-gateway (Node.js)
+ *
+ * Used for synchronous incident queries when Kafka async delivery
+ * is too slow (e.g. during pre-transaction risk check).
+ */
+service IncidentService {
+  // Get all active incidents for a specific route
+  rpc GetActiveIncidents(GetIncidentsRequest) returns (GetIncidentsResponse);
+
+  // Get all active incidents across all routes (ops-console dashboard)
+  rpc GetAllActiveIncidents(EmptyRequest) returns (GetIncidentsResponse);
+
+  // Get a specific incident by ID
+  rpc GetIncidentById(IncidentByIdRequest) returns (IncidentDetail);
+}
+
+// -------------------------------------------------------
+// GetActiveIncidents
+// -------------------------------------------------------
+
+message GetIncidentsRequest {
+  string route_key = 1;   // e.g. "HDFC_SBI" — leave empty for all
+}
+
+message IncidentSummary {
+  string incident_id  = 1;
+  string route        = 2;
+  string severity     = 3;   // LOW | HIGH | CRITICAL
+  string status       = 4;   // ACTIVE | RESOLVED
+  string description  = 5;
+  string created_at   = 6;
+  int32  affected_users_count = 7;
+}
+
+message GetIncidentsResponse {
+  repeated IncidentSummary incidents = 1;
+  int32 total = 2;
+}
+
+// -------------------------------------------------------
+// GetIncidentById
+// -------------------------------------------------------
+
+message IncidentByIdRequest {
+  string incident_id = 1;
+}
+
+message BlastRadius {
+  repeated string affected_routes    = 1;
+  repeated string affected_banks     = 2;
+  repeated string affected_psps      = 3;
+  repeated string affected_merchants = 4;
+  int32 affected_users_count         = 5;
+  int32 estimated_txn_impact         = 6;
+}
+
+message IncidentDetail {
+  string incident_id               = 1;
+  string route                     = 2;
+  string severity                  = 3;
+  string status                    = 4;
+  string description               = 5;
+  string root_cause                = 6;
+  string created_at                = 7;
+  string resolved_at               = 8;
+  int32 affected_users_count       = 9;
+  int32 affected_merchants_count   = 10;
+  BlastRadius blast_radius         = 11;
+}
+
+// -------------------------------------------------------
+// Shared
+// -------------------------------------------------------
+
+message EmptyRequest {}

@@ -1,0 +1,13 @@
+{
+  "event_id": "660e8400-e29b-41d4-a716-446655440003",
+  "event_type": "incident.created",
+  "correlation_id": "incident-flow-4a5b6c7d",
+  "timestamp": "2024-01-15T07:35:00.000Z",
+  "version": "1.0",
+  "incident_id": "inc_icici_hdfc_001",
+  "route": "ICICI_HDFC",
+  "severity": "CRITICAL",
+  "description": "Route ICICI → HDFC degraded. Failure rate: 72%, Health Score: 28/100",
+  "trigger_metric": "failure_rate > 30%",
+  "trigger_value": 72.4
+}

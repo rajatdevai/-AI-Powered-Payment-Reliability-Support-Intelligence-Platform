@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package prism.agent;
+
+/**
+ * AgentService
+ *
+ * gRPC server: agent-service (Python / LangGraph)
+ * gRPC clients: api-gateway (Node.js)
+ *
+ * All AI agent interactions flow through this service.
+ * Supports streaming for long-running agent responses.
+ */
+service AgentService {
+  // Single-turn query (customer portal, quick lookups)
+  rpc RunAgentQuery(AgentQueryRequest) returns (AgentQueryResponse);
+
+  // Streaming query — response chunks delivered as generated (BPO copilot)
+  rpc RunAgentQueryStream(AgentQueryRequest) returns (stream AgentStreamChunk);
+
+  // Clear session memory (on logout or session timeout)
+  rpc ClearSession(ClearSessionRequest) returns (ClearSessionResponse);
+}
+
+// -------------------------------------------------------
+// Personas
+// -------------------------------------------------------
+
+enum Persona {
+  PERSONA_UNSPECIFIED = 0;
+  CUSTOMER            = 1;   // support-agent handles — simple, reassuring tone
+  BPO_AGENT           = 2;   // bpo-copilot-agent handles — full technical context
+  OPS_ENGINEER        = 3;   // reliability-agent handles — raw metrics + incidents
+}
+
+// -------------------------------------------------------
+// RunAgentQuery
+// -------------------------------------------------------
+
+message AgentQueryRequest {
+  string session_id     = 1;   // Links to Redis IRIS conversation memory
+  Persona persona       = 2;
+  string message        = 3;
+  string transaction_id = 4;   // Optional — pre-loads transaction context
+  string incident_id    = 5;   // Optional — pre-loads incident context
+}
+
+message AgentTrace {
+  string agent_name = 1;
+  string message    = 2;
+  string timestamp  = 3;
+}
+
+message AgentQueryResponse {
+  string response               = 1;   // Final synthesised response (Markdown)
+  repeated AgentTrace traces    = 2;   // Internal agent decision trace
+  bool memory_updated           = 3;   // True if Redis IRIS was written to
+  string responding_agent       = 4;   // Which sub-agent produced the answer
+  string session_id             = 5;
+}
+
+// -------------------------------------------------------
+// RunAgentQueryStream
+// -------------------------------------------------------
+
+message AgentStreamChunk {
+  string chunk_text     = 1;
+  bool is_final         = 2;
+  string agent_name     = 3;   // Which agent is speaking
+}
+
+// -------------------------------------------------------
+// ClearSession
+// -------------------------------------------------------
+
+message ClearSessionRequest {
+  string session_id = 1;
+}
+
+message ClearSessionResponse {
+  bool success = 1;
+  string message = 2;
+}

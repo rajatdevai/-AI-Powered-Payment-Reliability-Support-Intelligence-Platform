@@ -1,0 +1,157 @@
+// =============================================================================
+// PRISM — Payment Orchestrator — Prisma Schema
+// This is the service-local copy. Source of truth: infrastructure/postgres/schema.prisma
+// Generator output is set to local node_modules.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BankCode {
+  HDFC
+  ICICI
+  SBI
+  AXIS
+  YESBANK
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  TIMEOUT
+  REVERSED
+}
+
+enum IncidentSeverity {
+  LOW
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  ACTIVE
+  RESOLVED
+}
+
+enum CaseStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  ESCALATED
+}
+
+model User {
+  id         String        @id @default(uuid()) @db.Uuid
+  phone      String        @unique
+  upi_id     String?       @unique
+  name       String
+  email      String?       @unique
+  created_at DateTime      @default(now())
+  updated_at DateTime      @updatedAt
+
+  transactions Transaction[]
+  cases        SupportCase[]
+
+  @@map("users")
+}
+
+model Merchant {
+  id         String    @id @default(uuid()) @db.Uuid
+  name       String
+  code       String    @unique
+  category   String?
+  bank_code  BankCode?
+  created_at DateTime  @default(now())
+
+  transactions Transaction[]
+
+  @@map("merchants")
+}
+
+model Transaction {
+  id                  String            @id @default(uuid()) @db.Uuid
+  amount              Decimal           @db.Decimal(12, 2)
+  currency            String            @default("INR") @db.VarChar(3)
+  sender_bank         BankCode
+  receiver_bank       BankCode
+  psp_id              String?
+  merchant_id         String?           @db.Uuid
+  user_id             String?           @db.Uuid
+  status              TransactionStatus @default(PENDING)
+  route_path          String[]
+  latency_ms          Int?
+  error_code          String?
+  error_message       String?
+  root_cause          String?
+  affected_component  String?
+  rca_confidence      Float?
+  expected_reversal   String?
+  reversal_confidence Float?
+  created_at          DateTime          @default(now())
+  settled_at          DateTime?
+
+  merchant      Merchant?           @relation(fields: [merchant_id], references: [id])
+  user          User?               @relation(fields: [user_id], references: [id])
+  support_cases SupportCase[]
+
+  @@index([status])
+  @@index([sender_bank, receiver_bank])
+  @@index([created_at(sort: Desc)])
+  @@index([user_id])
+  @@index([merchant_id])
+  @@index([status, created_at(sort: Desc)])
+
+  @@map("transactions")
+}
+
+model Incident {
+  id                       String           @id @default(uuid()) @db.Uuid
+  route                    String
+  severity                 IncidentSeverity
+  status                   IncidentStatus   @default(ACTIVE)
+  affected_users_count     Int              @default(0)
+  affected_merchants_count Int              @default(0)
+  blast_radius             Json?
+  description              String
+  root_cause               String?
+  created_at               DateTime         @default(now())
+  resolved_at              DateTime?
+
+  @@index([status])
+  @@index([route])
+  @@index([status, created_at(sort: Desc)])
+
+  @@map("incidents")
+}
+
+model SupportCase {
+  id                           String     @id @default(uuid()) @db.Uuid
+  transaction_id               String     @db.Uuid
+  customer_id                  String?    @db.Uuid
+  agent_id                     String?
+  status                       CaseStatus @default(OPEN)
+  ai_rca_summary               String?    @db.Text
+  ai_suggested_response        String?    @db.Text
+  ai_escalation_recommendation String?    @db.Text
+  refund_eta                   String?
+  notes                        String?    @db.Text
+  created_at                   DateTime   @default(now())
+  updated_at                   DateTime   @updatedAt
+  closed_at                    DateTime?
+
+  transaction Transaction @relation(fields: [transaction_id], references: [id])
+  customer    User?       @relation(fields: [customer_id], references: [id])
+
+  @@index([status])
+  @@index([transaction_id])
+  @@index([customer_id])
+
+  @@map("support_cases")
+}

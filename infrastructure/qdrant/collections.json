@@ -1,0 +1,82 @@
+{
+  "collections": [
+    {
+      "name": "historical_failures",
+      "description": "Past payment failure events with error patterns. Used by rca-engine for RAG similarity search.",
+      "vector_config": {
+        "size": 1536,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "transaction_id": "string",
+        "error_code": "string",
+        "error_message": "string",
+        "root_cause": "string",
+        "affected_component": "string",
+        "sender_bank": "string",
+        "receiver_bank": "string",
+        "amount_range": "string",
+        "resolution": "string",
+        "resolution_time_minutes": "integer",
+        "date": "string"
+      },
+      "indexes": ["error_code", "affected_component", "sender_bank", "receiver_bank"]
+    },
+    {
+      "name": "rca_reports",
+      "description": "Generated RCA reports. Stored for retrieval by agent-service and future training data.",
+      "vector_config": {
+        "size": 1536,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "rca_report_id": "string",
+        "transaction_id": "string",
+        "root_cause": "string",
+        "affected_component": "string",
+        "confidence": "float",
+        "llm_summary": "string",
+        "created_at": "string"
+      },
+      "indexes": ["affected_component", "root_cause"]
+    },
+    {
+      "name": "playbooks",
+      "description": "Operational SOPs and resolution playbooks. Used by knowledge-agent for policy queries.",
+      "vector_config": {
+        "size": 1536,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "playbook_id": "string",
+        "title": "string",
+        "category": "string",
+        "content": "string",
+        "applicable_error_codes": "string[]",
+        "last_updated": "string",
+        "version": "string"
+      },
+      "indexes": ["category", "applicable_error_codes"]
+    },
+    {
+      "name": "incident_knowledge",
+      "description": "Historical incident summaries and post-mortems. Used by incident-agent and rca-agent.",
+      "vector_config": {
+        "size": 1536,
+        "distance": "Cosine"
+      },
+      "payload_schema": {
+        "incident_id": "string",
+        "route": "string",
+        "severity": "string",
+        "description": "string",
+        "root_cause": "string",
+        "resolution": "string",
+        "duration_minutes": "integer",
+        "affected_users_count": "integer",
+        "date": "string"
+      },
+      "indexes": ["route", "severity", "root_cause"]
+    }
+  ]
+}

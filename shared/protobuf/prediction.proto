@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package prism.prediction;
+
+option go_package = "prism/prediction";
+
+/**
+ * PredictionService
+ *
+ * gRPC server: prediction-engine (Python / FastAPI)
+ * gRPC clients: payment-orchestrator (Node.js), api-gateway (Node.js)
+ *
+ * Called SYNCHRONOUSLY before a payment is authorised.
+ * P99 latency target: < 100ms (Redis cache hit) or < 500ms (cold calculation).
+ */
+service PredictionService {
+  // Pre-transaction: should this payment proceed?
+  rpc PredictPaymentSuccess(PredictRequest) returns (PredictResponse);
+
+  // On-demand route health check (used by api-gateway for dashboard queries)
+  rpc GetRouteHealth(RouteHealthRequest) returns (RouteHealthResponse);
+
+  // Batch health for all routes (used by ops-console on load)
+  rpc GetAllRouteHealth(EmptyRequest) returns (AllRouteHealthResponse);
+}
+
+// -------------------------------------------------------
+// PredictPaymentSuccess
+// -------------------------------------------------------
+
+message PredictRequest {
+  string sender_bank    = 1;    // BankCode enum value
+  string receiver_bank  = 2;
+  double amount         = 3;
+  string currency       = 4;    // Default: "INR"
+  repeated string route_history = 5;  // Recent route usage for this session
+}
+
+message PredictResponse {
+  string route_key            = 1;   // e.g. "HDFC_SBI"
+  double success_probability  = 2;   // 0–100
+  string risk_level           = 3;   // LOW | MEDIUM | HIGH | CRITICAL
+  string recommendation       = 4;   // Human-readable advice
+  double route_health_score   = 5;   // 0–100
+  repeated string active_incidents = 6;  // Incident IDs affecting this route
+  bool cached                 = 7;   // True if served from Redis
+  string generated_at         = 8;   // ISO 8601
+}
+
+// -------------------------------------------------------
+// GetRouteHealth
+// -------------------------------------------------------
+
+message RouteHealthRequest {
+  string route_key = 1;   // e.g. "HDFC_SBI"
+}
+
+message RouteHealthResponse {
+  string route_key          = 1;
+  double health_score       = 2;
+  double success_rate       = 3;
+  double failure_rate       = 4;
+  double timeout_rate       = 5;
+  double p95_ms             = 6;
+  double p99_ms             = 7;
+  int32  total_transactions = 8;
+  string last_updated       = 9;
+  bool   has_active_incident = 10;
+}
+
+// -------------------------------------------------------
+// GetAllRouteHealth
+// -------------------------------------------------------
+
+message EmptyRequest {}
+
+message AllRouteHealthResponse {
+  repeated RouteHealthResponse routes = 1;
+}

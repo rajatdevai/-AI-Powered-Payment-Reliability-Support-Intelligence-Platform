@@ -1,0 +1,22 @@
+{
+  "name": "@prism/events",
+  "version": "1.0.0",
+  "description": "Kafka event schemas and TypeScript types for all PRISM topics",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3"
+  }
+}
